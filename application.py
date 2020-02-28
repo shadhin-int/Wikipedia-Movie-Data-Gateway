@@ -134,11 +134,78 @@ def movie_info_store_in_db(single_movie_complete_info):
     db_conn.close()
 
 
+def dict_factory(cursor, row):
+    obj_dict = {}
+    for idx, col in enumerate(cursor.description):
+        obj_dict[col[0]] = row[idx]
+    return obj_dict
+
+
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "This project currently developed  on Python restfull web service under Windows Os. This api generate and store List of Academy Award-winning films data from wikipedia and the rest api will help to have this all data."
+
+
+@app.route('/GetMoviesInfo', methods=['GET'])
+def Get_Movies_Info():
+    db_conn = sqlite3.connect(SQLITE_DATABASE)
+    db_conn.row_factory = dict_factory
+    cur = db_conn.cursor()
+    cur.execute('SELECT * FROM movies')
+    rows = cur.fetchall()
+    return jsonify(rows)
+
+
+@app.route('/GetMoviesInfoById/<id>', methods=['GET'])
+def Get_Movies_Info_By_Id(id):
+    data = []
+    db_conn = sqlite3.connect(SQLITE_DATABASE)
+    db_conn.row_factory = dict_factory
+    cur = db_conn.cursor()
+    cur.execute('SELECT * FROM movies where id = ?', [id])
+    movie = cur.fetchall()
+
+    cur = db_conn.cursor()
+    cur.execute('SELECT * FROM movie_info where movie_id = ?', [id])
+    details_info = cur.fetchall()
+    data.append({
+        "movie": movie,
+        "movie_info": details_info,
+    })
+    return jsonify(data)
+
+
+@app.route('/GetMoviesDetailsInfo', methods=['GET'])
+def Get_Movies_DetailsInfo():
+    data = []
+    db_conn = sqlite3.connect(SQLITE_DATABASE)
+    db_conn.row_factory = dict_factory
+    cur = db_conn.cursor()
+    cur.execute('SELECT * FROM movies')
+    rows = cur.fetchall()
+    for row in rows:
+        cur.execute('SELECT * FROM movie_info where movie_id = ?', [
+            row['id']
+        ])
+        details_info = cur.fetchall()
+        data.append({
+            "movie": row,
+            "movie_info": details_info,
+        })
+    return jsonify(data)
+
+
 def main():
     for arg in sys.argv[1:]:
         if arg == "parse":
             print("Scraping Server Running....")
             scrape_data_from_wikipedia()
+
+        elif arg == "serve":
+            print("Rest Api Server Running....")
+            app.run()
+
         else:
             print("Please pass-running mode")
 
