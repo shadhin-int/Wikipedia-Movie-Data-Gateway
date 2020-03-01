@@ -108,7 +108,7 @@ def init_database():
         CREATE TABLE IF NOT EXISTS movie_rating (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         rating TEXT NULL,
-       
+
         movie_id INTEGER NOT NULL,
         FOREIGN KEY (movie_id) REFERENCES movies (id)
         );
@@ -151,6 +151,84 @@ def dict_factory(cursor, row):
     for idx, col in enumerate(cursor.description):
         obj_dict[col[0]] = row[idx]
     return obj_dict
+
+
+def Check_Movie_Info_In_CSV():
+    csv_file = csv.reader(open('movies.csv', encoding="utf8"), delimiter=",")
+    db_conn = sqlite3.connect(SQLITE_DATABASE)
+    db_conn.row_factory = dict_factory
+    cur = db_conn.cursor()
+
+    try:
+        for row in csv_file:
+            search_key = row[1].split("(")[0].strip("\n\r")
+            cur.execute('select * from movies where name like ?', [
+                '%' + search_key + '%'
+            ])
+            rows = cur.fetchone()
+            db_conn.commit()
+            # print(rows)
+            average_rating = Get_Movie_Average_Rating(row[0])
+            if rows:
+                cur.execute('INSERT INTO movie_rating (rating, movie_id) VALUES (?,?)', [
+                    average_rating,
+                    rows['id'],
+                ])
+                db_conn.commit()
+                db_conn.close()
+    except Exception as identifier:
+        pass
+
+
+def Get_Movie_Average_Rating(movie_id):
+    # movie_average_rating = 4
+    db_conn = sqlite3.connect(SQLITE_DATABASE)
+    db_conn.row_factory = dict_factory
+    cur = db_conn.cursor()
+    cur.execute('select * from movies')
+    rows = cur.fetchall()
+
+    try:
+        for movie_row in rows:
+            movieId = None
+            with open('movies.csv', encoding='utf8') as movieFile:
+                movie_info_dictionary = csv.dict_reader(movieFile)
+                for row in movie_info_dictionary:
+                    if row['title'].split(' (')[0] == movie_row['name']:
+                        movieId = row['movieId']
+
+            if movieId:
+                with open('ratings.csv', encoding='utf8') as ratingFile:
+                    rating_info_dictionary = csv.dict_reader(ratingFile)
+                    rating_givers = []
+                    ratings = []
+                    for row in rating_info_dictionary:
+                        if movieId == row['movieId']:
+                            rating_givers.append(row['userId'])
+                            ratings.append(float(row['rating']))
+
+            def get_average_of_list(list):
+                return sum(list) / len(list)
+
+            db_connection = sqlite3.connect(SQLITE_DATABASE)
+            db_connection.row_factory = dict_factory
+            movie_cursor = db_connection.cursor()
+            movie_cursor.execute('INSERT INTO movie_info (name, value, movie_id) VALUES (?,?,?)', [
+                'rating_givers',
+                len(rating_givers),
+                movie_row['id']
+            ])
+            movie_cursor.execute('INSERT INTO movie_info (name, value, movie_id) VALUES (?,?,?)', [
+                'agerage_rating',
+                get_average_of_list(ratings),
+                movie_row['id']
+            ])
+
+            db_connection.commit()
+            db_connection.close()
+
+    except Exception as identifier:
+        pass
 
 
 app = Flask(__name__)
@@ -214,7 +292,7 @@ def main():
             print("Scraping Server Running....")
             init_database()
             scrape_data_from_wikipedia()
-            match_movie_info_with_csv()
+            Check_Movie_Info_In_CSV()
 
         elif arg == "serve":
             print("Rest Api Server Running....")
@@ -222,43 +300,6 @@ def main():
 
         else:
             print("Please pass-running mode")
-
-
-def match_movie_info_with_csv():
-    csv_file = csv.reader(open('movies.csv', encoding="utf8"), delimiter=",")
-    db_conn = sqlite3.connect(SQLITE_DATABASE)
-    db_conn.row_factory = dict_factory
-    cur = db_conn.cursor()
-
-    try:
-        for row in csv_file:
-            search_key = row[1].split("(")[0].strip("\n\r")
-            cur.execute('select * from movies where name like ?', [
-                '%' + search_key + '%'
-            ])
-            rows = cur.fetchone()
-            db_conn.commit()
-            # print(rows)
-            average_rating = find_movie_average_rating(row[0])
-            if rows:
-                cur.execute('INSERT INTO movie_rating (rating, movie_id) VALUES (?,?)', [
-                    average_rating,
-                    rows['id'],
-                ])
-                db_conn.commit()
-                db_conn.close()
-    except Exception as identifier:
-        pass
-
-
-def find_movie_average_rating(movie_id):
-    movie_average_rating = 4
-    csv_file = csv.reader(open('ratings.csv', encoding="utf8"), delimiter=",")
-    for csv_row in csv_file:
-        print(csv_row[1] + ' : ' + csv_row[2])   # movie_Id : movie_rating
-
-    # todo: check in csv then make average then
-    return movie_average_rating
 
 
 if __name__ == "__main__":
