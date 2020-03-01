@@ -6,6 +6,9 @@ from bs4 import BeautifulSoup
 from flask import Flask, jsonify
 import sqlite3
 
+import csv
+import sys
+
 home_html_page = "https://en.wikipedia.org/wiki/List_of_Academy_Award-winning_films"
 base_url = "https://en.wikipedia.org"
 movie_lists = []
@@ -13,8 +16,6 @@ SQLITE_DATABASE = "movieinfo.db"
 
 
 def scrape_data_from_wikipedia():
-    init_database()
-
     get_request = requests.get(home_html_page)
     parsed_html = BeautifulSoup(get_request.content, features="html.parser")
     table = parsed_html.select(".wikitable.sortable")
@@ -78,6 +79,7 @@ def init_database():
     init_cursor = db_conn.cursor()
     init_cursor.execute('''DROP TABLE IF EXISTS movies;''')
     init_cursor.execute('''DROP TABLE IF EXISTS movie_info;''')
+    init_cursor.execute('''DROP TABLE IF EXISTS movie_rating;''')
 
     init_cursor.execute('''
     CREATE TABLE IF NOT EXISTS movies (
@@ -101,6 +103,16 @@ def init_database():
     FOREIGN KEY (movie_id) REFERENCES movies (id)
     );
     ''')
+
+    init_cursor.execute('''
+        CREATE TABLE IF NOT EXISTS movie_rating (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        rating TEXT NULL,
+       
+        movie_id INTEGER NOT NULL,
+        FOREIGN KEY (movie_id) REFERENCES movies (id)
+        );
+        ''')
     db_conn.commit()
     db_conn.close()
     return "Successfully Database Initialization"
@@ -200,7 +212,9 @@ def main():
     for arg in sys.argv[1:]:
         if arg == "parse":
             print("Scraping Server Running....")
+            init_database()
             scrape_data_from_wikipedia()
+            match_movie_info_with_csv()
 
         elif arg == "serve":
             print("Rest Api Server Running....")
@@ -208,6 +222,43 @@ def main():
 
         else:
             print("Please pass-running mode")
+
+
+def match_movie_info_with_csv():
+    csv_file = csv.reader(open('movies.csv', encoding="utf8"), delimiter=",")
+    db_conn = sqlite3.connect(SQLITE_DATABASE)
+    db_conn.row_factory = dict_factory
+    cur = db_conn.cursor()
+
+    try:
+        for row in csv_file:
+            search_key = row[1].split("(")[0].strip("\n\r")
+            cur.execute('select * from movies where name like ?', [
+                '%' + search_key + '%'
+            ])
+            rows = cur.fetchone()
+            db_conn.commit()
+            # print(rows)
+            average_rating = find_movie_average_rating(row[0])
+            if rows:
+                cur.execute('INSERT INTO movie_rating (rating, movie_id) VALUES (?,?)', [
+                    average_rating,
+                    rows['id'],
+                ])
+                db_conn.commit()
+                db_conn.close()
+    except Exception as identifier:
+        pass
+
+
+def find_movie_average_rating(movie_id):
+    movie_average_rating = 4
+    csv_file = csv.reader(open('ratings.csv', encoding="utf8"), delimiter=",")
+    for csv_row in csv_file:
+        print(csv_row[1] + ' : ' + csv_row[2])   # movie_Id : movie_rating
+
+    # todo: check in csv then make average then
+    return movie_average_rating
 
 
 if __name__ == "__main__":
