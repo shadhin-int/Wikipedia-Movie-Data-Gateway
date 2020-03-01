@@ -15,6 +15,7 @@ movie_lists = []
 SQLITE_DATABASE = "movieinfo.db"
 
 
+# This method scraped data from wikipedia. From individual link it will scrape 10 information for individual movie
 def scrape_data_from_wikipedia():
     get_request = requests.get(home_html_page)
     parsed_html = BeautifulSoup(get_request.content, features="html.parser")
@@ -74,6 +75,7 @@ def scrape_data_from_wikipedia():
     print("Successfully scrape data from wikipedia")
 
 
+# Initialization 3 databases - movies, movie-info and movie_rating for storing data from sraped data
 def init_database():
     db_conn = sqlite3.connect(SQLITE_DATABASE)
     init_cursor = db_conn.cursor()
@@ -118,6 +120,7 @@ def init_database():
     return "Successfully Database Initialization"
 
 
+# This method stored scraped data into database
 def movie_info_store_in_db(single_movie_complete_info):
     print(single_movie_complete_info)
     # print(single_movie_complete_info['film_info'])
@@ -153,6 +156,7 @@ def dict_factory(cursor, row):
     return obj_dict
 
 
+# This method will check movie information in scraped data and movies.csv & ratings,csv and insert ratings info into existings scraped database
 def Check_Movie_Info_In_CSV():
     csv_file = csv.reader(open('movies.csv', encoding="utf8"), delimiter=",")
     db_conn = sqlite3.connect(SQLITE_DATABASE)
@@ -180,6 +184,7 @@ def Check_Movie_Info_In_CSV():
         pass
 
 
+# This method generate average movie rating and ratings givers based on movies.csv and ratings.csv and insert into existing database
 def Get_Movie_Average_Rating(movie_id):
     # movie_average_rating = 4
     db_conn = sqlite3.connect(SQLITE_DATABASE)
@@ -210,9 +215,9 @@ def Get_Movie_Average_Rating(movie_id):
             def get_average_of_list(list):
                 return sum(list) / len(list)
 
-            db_connection = sqlite3.connect(SQLITE_DATABASE)
-            db_connection.row_factory = dict_factory
-            movie_cursor = db_connection.cursor()
+            db_conn = sqlite3.connect(SQLITE_DATABASE)
+            db_conn.row_factory = dict_factory
+            movie_cursor = db_conn.cursor()
             movie_cursor.execute('INSERT INTO movie_info (name, value, movie_id) VALUES (?,?,?)', [
                 'rating_givers',
                 len(rating_givers),
@@ -224,8 +229,8 @@ def Get_Movie_Average_Rating(movie_id):
                 movie_row['id']
             ])
 
-            db_connection.commit()
-            db_connection.close()
+            db_conn.commit()
+            db_conn.close()
 
     except Exception as identifier:
         pass
@@ -237,6 +242,7 @@ def home():
     return "This project currently developed  on Python restfull web service under Windows Os. This api generate and store List of Academy Award-winning films data from wikipedia and the rest api will help to have this all data."
 
 
+# This method will provide movies information from the table of academy award winning films
 @app.route('/GetMoviesInfo', methods=['GET'])
 def Get_Movies_Info():
     db_conn = sqlite3.connect(SQLITE_DATABASE)
@@ -247,6 +253,7 @@ def Get_Movies_Info():
     return jsonify(rows)
 
 
+# This endpoint will provide movies details information by movie id
 @app.route('/GetMoviesInfoById/<id>', methods=['GET'])
 def Get_Movies_Info_By_Id(id):
     data = []
@@ -266,6 +273,7 @@ def Get_Movies_Info_By_Id(id):
     return jsonify(data)
 
 
+# This endpoint will provide movies details information
 @app.route('/GetMoviesDetailsInfo', methods=['GET'])
 def Get_Movies_DetailsInfo():
     data = []
