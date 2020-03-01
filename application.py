@@ -5,9 +5,8 @@ import requests
 from bs4 import BeautifulSoup
 from flask import Flask, jsonify
 import sqlite3
-
 import csv
-import sys
+
 
 home_html_page = "https://en.wikipedia.org/wiki/List_of_Academy_Award-winning_films"
 base_url = "https://en.wikipedia.org"

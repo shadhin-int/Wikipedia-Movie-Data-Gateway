@@ -1,2 +1,5 @@
 beautifulsoup4
 Flask
+requests
+sqlite3
+jsonify
